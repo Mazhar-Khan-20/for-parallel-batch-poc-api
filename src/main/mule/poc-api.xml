@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="7048c1bf-16a3-4339-bd59-9bf27b62517d" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="poc-batch-job" doc:id="75809e89-737d-4a71-96af-2a92b6442594" >
+		<http:listener doc:name="Listener" doc:id="cb3dae1c-254d-48b7-b391-53c0c4b1d91b" config-ref="HTTP_Listener_config" path="/batch"/>
+		<logger level="INFO" doc:name="Logger" doc:id="d38be2c0-df7b-45e9-ac57-d3f1b520f8a4" message="START INITIAL"/>
+		<ee:transform doc:name="Transform Message" doc:id="9744b2d1-f87f-4f5a-b1d5-721fce186d69" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+1 to 10]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="poc-apiBatch_Job" doc:id="47349263-e758-4118-ad59-5e4017284fa6">
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="1b73eb8c-c8e7-4420-a851-8ccf97578ebc" >
+					<logger level="INFO" doc:name="Logger" doc:id="8dc801de-356b-4bb9-baaf-9434ed93d221" message="BATCH STEP PAYLOAD :: #[payload] " />
+					<ee:transform doc:name="Transform Message" doc:id="dcac87f7-29c8-4e1d-8d3d-7af0d27114fb">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+(( if(mod(payload,2) == 0) payload else 0  )) - 0]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+					<logger level="INFO" doc:name="Logger" doc:id="b4b2b4f5-75a1-4e2f-b01e-a0013309861f" message="EVEN NUMBERS :: #[payload]" />
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="711924c5-5a60-4bf8-aaec-2782f8ad105f" size="2">
+						<logger level="INFO" doc:name="Logger" doc:id="5aa3d101-ecba-44b3-8d20-a4f652da8d03" message="AGGREGATOR"/>
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<ee:transform doc:name="Transform Message" doc:id="d2ed6a82-8465-4274-a51a-6efa10f6afb2" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable value="#[payload]" doc:name="Set Variable" doc:id="25c542f4-4104-41c8-9408-0e244cc6714a" variableName="initial"/>
+				<logger level="INFO" doc:name="Logger" doc:id="e94ffa03-8042-4d60-85d3-09b179322e20" message="ON COMPLETE PHASE :: #[payload]" />
+			</batch:on-complete>
+		</batch:job>
+		<ee:transform doc:name="Transform Message" doc:id="e4395fc9-91cc-4d68-b33e-ffa9e6813878" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+vars.initial]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="dffd35e4-de05-4381-a1af-0956949f54f4" message="COMPLETETD"/>
+	</flow>
+	<flow name="poc-for-each" doc:id="7126d5a0-27eb-4994-8d52-6ada3b0d6950" >
+		<http:listener doc:name="Listener" doc:id="9b573a79-baed-49e9-88db-f4977a1bc47c" config-ref="HTTP_Listener_config" path="/for-each" />
+		<logger level="INFO" doc:name="Logger" doc:id="9c7e5e5c-3486-470d-a7e7-9ba1544e7de6" />
+		<ee:transform doc:name="payload and var resp" doc:id="37bfd1bf-96a5-4ee4-95cf-629467f255c9" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+1 to 10]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+				<ee:set-variable variableName="resp" ><![CDATA[%dw 2.0
+output application/json
+---
+[]]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<foreach doc:name="For Each" doc:id="8e4d0e7f-c9c2-4b46-a517-eb0a2b82ab69" >
+			<logger level="INFO" doc:name="Logger" doc:id="bb72d7c1-d23a-45bc-9e3e-246b1596faa1" message="PAYLOAD :: #[payload] :: VARIABLE ROOT MESSAGE :: #[vars.rootMessage] :: COUNTER VARIABLE :: #[vars.counter]" />
+			<ee:transform doc:name="Transform Message" doc:id="a8b9e0b5-b8b8-4944-a698-4c84db010c7a" >
+				<ee:message >
+					<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+(( if(mod(payload,2) == 0) payload else 0  )) - 0]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<logger level="INFO" doc:name="Logger" doc:id="1d827a75-696d-4173-80b7-6929f20a8fef" message="EVEN NUMBERS :: #[payload]" />
+			<ee:transform doc:name="var Resp" doc:id="b14b4978-0bd0-4e93-9915-73b3502692a5" >
+				<ee:message >
+				</ee:message>
+				<ee:variables >
+					<ee:set-variable variableName="resp" ><![CDATA[%dw 2.0
+output application/json
+---
+vars.resp + payload]]></ee:set-variable>
+				</ee:variables>
+			</ee:transform>
+		</foreach>
+		<ee:transform doc:name="Transform Message" doc:id="f58d76d9-21a9-4263-b8fe-11f7e9ed327d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"evenNumber" : (vars.resp map($)) - 0
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="poc-parallel-for-each" doc:id="38a71603-0f6c-435c-a847-2b30d7313a2b" >
+		<http:listener doc:name="Listener" doc:id="7a047591-9d67-4522-aa37-8d815dcc6508" config-ref="HTTP_Listener_config" path="/for-each-parallel" />
+		<logger level="INFO" doc:name="Logger" doc:id="8c585d04-40a0-44e6-b0a8-eeb66710c8c7" />
+		<ee:transform doc:name="payload and var resp" doc:id="520b8e08-f06e-4d36-a3a9-e1b42e84d996" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+1 to 10]]></ee:set-payload>
+			</ee:message>
+			<ee:variables >
+			</ee:variables>
+		</ee:transform>
+		<parallel-foreach doc:name="Parallel For Each" doc:id="7a567d89-4f30-4e1e-9ca9-092d1788dd59" >
+			<logger level="INFO" doc:name="Logger" doc:id="2abfaf61-94f1-4b06-a8f1-cfbc37723d01" message="PAYLOAD :: #[payload] " />
+			<ee:transform doc:name="Transform Message" doc:id="59efd47c-83e6-4863-88e0-d238191aa90e">
+				<ee:message>
+					<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+(( if(mod(payload,2) == 0) payload else 0  )) - 0]]></ee:set-payload>
+				</ee:message>
+			</ee:transform>
+			<logger level="INFO" doc:name="Logger" doc:id="fb4c68e9-ee0e-4fc5-8d0b-9c6d9d3c080d" message="EVEN NUMBERS :: #[payload]" />
+		</parallel-foreach>
+		<ee:transform doc:name="Transform Message" doc:id="fe49c48f-4fe4-4b7f-8461-b9bed564320c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"evenNumber" : (payload map $.payload) - 0
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
